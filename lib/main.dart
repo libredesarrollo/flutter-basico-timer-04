@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:timer_04/model/count.dart';
+import 'package:timer_04/stream/count_stream.dart';
 import 'package:timer_04/widget/indicator.dart';
 import 'package:timer_04/widget/my_button.dart';
 
@@ -16,10 +17,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   Count count = Count('0', 1.0);
-  Timer timer;
-  int countTime;
-  int stop;
-
+  final countStream = CountStream();
   String startStopLabel = "Start";
 
   @override
@@ -41,9 +39,8 @@ class _MyAppState extends State<MyApp> {
                         child: MyButton(
                       color: Color(0xFF7C4DFF),
                       onPressed: () {
-                        stop = 30;
-                        countTime = 0;
-                        start();
+                        countStream.setTime(30);
+                        countStream.start();
                       },
                       text: "30 segundos",
                     )),
@@ -54,9 +51,8 @@ class _MyAppState extends State<MyApp> {
                         child: MyButton(
                       color: Color(0xFF757575),
                       onPressed: () {
-                        stop = 60;
-                        countTime = 0;
-                        start();
+                        countStream.setTime(60);
+                        countStream.start();
                       },
                       text: "1 minuto",
                     )),
@@ -67,24 +63,36 @@ class _MyAppState extends State<MyApp> {
                         child: MyButton(
                       color: Color(0xFFBDBDBD),
                       onPressed: () {
-                        stop = 120;
-                        countTime = 0;
-                        start();
+                        countStream.setTime(120);
+                        countStream.start();
                       },
                       text: "2 minutos",
                     )),
                   ],
                 ),
                 Expanded(
-                    child: Indicador(
-                  count: count,
+                    child: StreamBuilder(
+                  initialData: count,
+                  stream: countStream.stream(),
+                  builder: (_, AsyncSnapshot snapshot) {
+                    print("En el StreamBuilder");
+                    print(snapshot);
+
+                    if (snapshot.hasData) {
+                      print("Tenemos data");
+                      print(snapshot.data.percert);
+                    }
+
+                    return Indicador(
+                        count: snapshot.hasData ? snapshot.data : count);
+                  },
                 )),
                 Row(
                   children: [
                     Expanded(
                         child: MyButton(
                       color: Color(0xFF7B1FA2),
-                      onPressed: timer == null ? null : startStop,
+                      onPressed: startStop,
                       text: startStopLabel,
                     )),
                     SizedBox(
@@ -93,7 +101,7 @@ class _MyAppState extends State<MyApp> {
                     Expanded(
                         child: MyButton(
                       color: Color(0xFF212121),
-                      onPressed: timer == null ? null :reset,
+                      onPressed: reset,
                       text: "Reiniciar",
                     )),
                   ],
@@ -104,44 +112,24 @@ class _MyAppState extends State<MyApp> {
         ));
   }
 
-  start() {
-    startStopLabel = "Stop";
-    if (timer != null) timer.cancel();
-
-    timer = Timer.periodic(Duration(seconds: 1), (time) {
-      //var timer = new
-      countTime++;
+  void startStop() {
+    if (countStream.getActive()) {
+      countStream.stop();
       setState(() {
-        count.tag = countTime.toString();
-        count.percert = countTime / stop;
+        startStopLabel = "Start";
       });
+    } else {
+      countStream.start();
+      setState(() {
+        startStopLabel = "Stop";
+      });
+    }
+  }
 
-      if (countTime >= stop) {
-        time.cancel();
-        setState(() {
-          startStopLabel = "Start";
-        });
-      }
+  void reset() {
+    setState(() {
+      startStopLabel = "Stop";
     });
-  }
-
-  startStop() {
-    if (timer != null) {
-      if (timer.isActive) {
-        timer.cancel();
-        setState(() {
-           startStopLabel = "Start";
-        });
-      } else {
-        start();
-      }
-    }
-  }
-
-  reset() {
-    if (timer != null) {
-      countTime = 0;
-      start();
-    }
+    countStream.reset();
   }
 }
